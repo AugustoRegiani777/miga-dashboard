@@ -33,80 +33,163 @@
       <div class="brand-block">
         <p class="eyebrow">Uno de Miga · Panel de negocio</p>
         <h1>Cómo viene el local</h1>
-        <p class="sub" id="rango-sub">Datos en vivo desde Supabase.</p>
+        <p class="sub" id="rango-sub">Cargando…</p>
       </div>
-      <div class="header-actions">
-        <div class="range-picker" id="range-picker" aria-label="Rango de fechas">
-          <button type="button" class="range-chip active" data-range="semana">Esta semana</button>
-          <button type="button" class="range-chip" data-range="semana-pasada">Semana pasada</button>
-          <button type="button" class="range-chip" data-range="mes">Este mes</button>
-          <button type="button" class="range-chip" data-range="todo">Todo</button>
-        </div>
-        <button type="button" id="logout-btn" class="ghost-btn">Salir</button>
-      </div>
+      <button type="button" id="logout-btn" class="ghost-btn">Salir</button>
     </header>
 
-    <section class="kpis" id="kpis" aria-label="Resumen del período"></section>
+    <nav class="tabs-nav" id="tabs-nav" aria-label="Secciones del panel">
+      <button type="button" class="tab-btn active" data-tab="resumen">Resumen</button>
+      <button type="button" class="tab-btn" data-tab="facturacion">Facturación</button>
+      <button type="button" class="tab-btn" data-tab="productos">Productos</button>
+      <button type="button" class="tab-btn" data-tab="horarios">Horarios</button>
+    </nav>
 
-    <section class="grid">
-      <div class="card span-8">
-        <h2>Ventas por día</h2>
-        <p class="card-sub" id="dias-sub">Días del período seleccionado</p>
-        <div id="chart-dias"></div>
-      </div>
+    <p id="loading-msg" class="empty-msg" style="margin: 20px 0;">Consultando Supabase…</p>
 
-      <div class="card span-4">
-        <h2>Productos más vendidos</h2>
-        <p class="card-sub">Período seleccionado, por facturación</p>
-        <div class="rank-list" id="rank-productos"></div>
-      </div>
-
-      <div class="card span-7">
-        <h2>Mezcla de categorías</h2>
-        <p class="card-sub">Últimas 4 semanas completas</p>
-        <div class="legend" id="legend-categorias"></div>
-        <div id="chart-categorias"></div>
-      </div>
-
-      <div class="card span-5">
-        <h2>Café, alfajores y medialunas</h2>
-        <p class="card-sub">Período seleccionado</p>
-        <div class="trio" id="foco-trio"></div>
-      </div>
-
-      <div class="card span-7">
-        <h2>¿Cuándo vendemos más?</h2>
-        <p class="card-sub">Ventas por hora, período seleccionado</p>
-        <div id="chart-horas"></div>
-      </div>
-
-      <div class="card span-5">
-        <h2>Por día de la semana</h2>
-        <p class="card-sub">Período seleccionado</p>
-        <div id="chart-semana"></div>
-      </div>
-
-      <div class="card span-4 locked">
-        <span class="badge">Próximamente</span>
-        <h2>% de ventas con combo</h2>
-        <p class="why">El descuento ya queda registrado en cada venta, pero hay que separarlo bien de otros ajustes de precio antes de graficarlo.</p>
-      </div>
-
-      <div class="card span-4 locked">
-        <span class="badge">Próximamente</span>
-        <h2>Pedidos vs. mostrador</h2>
-        <p class="why">Falta conectar los datos de Pedidos a este panel.</p>
-      </div>
-
-      <div class="card span-4 locked">
-        <span class="badge">Próximamente</span>
-        <h2>Margen por sandwich</h2>
-        <p class="why">Necesita el costo de cada receta — el dato existe, falta cruzarlo con las ventas.</p>
+    <!-- ===== RESUMEN ===== -->
+    <section class="tab-panel active" id="tab-resumen">
+      <section class="kpis" id="r-kpis"></section>
+      <div class="insights" id="r-insights"></div>
+      <div class="grid">
+        <div class="card span-8">
+          <h2>Facturación diaria</h2>
+          <p class="card-sub">Todo el período, con el fin de semana marcado</p>
+          <div id="r-chart-dias"></div>
+        </div>
+        <div class="card span-4">
+          <h2>Productos más vendidos</h2>
+          <p class="card-sub">Por facturación</p>
+          <div class="rank-list" id="r-rank-productos"></div>
+        </div>
+        <div class="card span-6">
+          <h2>Promedio por día de semana</h2>
+          <p class="card-sub">Sin contar los lunes (horario reducido)</p>
+          <div id="r-chart-dow"></div>
+        </div>
+        <div class="card span-6">
+          <h2>Transacciones por hora</h2>
+          <p class="card-sub">Todo el período</p>
+          <div id="r-chart-hora"></div>
+        </div>
       </div>
     </section>
 
+    <!-- ===== FACTURACIÓN ===== -->
+    <section class="tab-panel" id="tab-facturacion">
+      <p class="alert-note" id="f-alert"></p>
+      <section class="kpis" id="f-kpis"></section>
+      <div class="grid">
+        <div class="card span-12">
+          <h2>Facturación diaria — todas las semanas</h2>
+          <p class="card-sub">Naranja = fin de semana · azul = entre semana · el lunes queda marcado aparte</p>
+          <div id="f-chart-dias"></div>
+        </div>
+        <div class="card span-6">
+          <h2>Total por semana</h2>
+          <div id="f-chart-semanas"></div>
+        </div>
+        <div class="card span-6">
+          <h2>Promedio por día de semana</h2>
+          <div class="range-picker" id="f-dow-toggle">
+            <button type="button" class="range-chip active" data-mode="abs">€ totales</button>
+            <button type="button" class="range-chip" data-mode="hora">€ por hora abierta</button>
+          </div>
+          <div id="f-chart-dow"></div>
+        </div>
+        <div class="card span-6">
+          <h2 id="f-meses-titulo">Comparación por mes</h2>
+          <p class="card-sub">Promedio por día de semana</p>
+          <div class="legend" id="f-legend-meses"></div>
+          <div id="f-chart-meses"></div>
+        </div>
+        <div class="card span-6">
+          <h2>Tendencia semanal</h2>
+          <p class="card-sub">Promedio diario sin contar lunes</p>
+          <div id="f-chart-tendencia"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PRODUCTOS ===== -->
+    <section class="tab-panel" id="tab-productos">
+      <div class="stabs" id="stabs-productos">
+        <button type="button" class="stab active" data-stab="sandwiches">Sandwiches</button>
+        <button type="button" class="stab" data-stab="cafe">Café</button>
+        <button type="button" class="stab" data-stab="bolleria">Bollería</button>
+        <button type="button" class="stab" data-stab="bebidas">Bebidas</button>
+      </div>
+
+      <div class="stab-panel active" id="sp-sandwiches">
+        <div class="prod-kpis" id="sw-kpis"></div>
+        <div class="grid">
+          <div class="card span-6"><h2>Unidades por sabor</h2><div id="sw-chart-qty"></div></div>
+          <div class="card span-6"><h2>Facturación por sabor</h2><div id="sw-chart-rev"></div></div>
+          <div class="card span-6">
+            <h2>Top 3 sabores — por día de semana</h2>
+            <div class="legend" id="sw-legend-dow"></div>
+            <div id="sw-chart-dow"></div>
+          </div>
+          <div class="card span-6">
+            <h2>Top 3 sabores — por hora</h2>
+            <div class="legend" id="sw-legend-hora"></div>
+            <div id="sw-chart-hora"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stab-panel" id="sp-cafe">
+        <div class="prod-kpis" id="ca-kpis"></div>
+        <div class="insights" id="ca-insights"></div>
+        <div class="grid">
+          <div class="card span-6"><h2>Cafés por tipo</h2><div id="ca-chart-qty"></div></div>
+          <div class="card span-6"><h2>Cafés por hora</h2><div id="ca-chart-hora"></div></div>
+        </div>
+      </div>
+
+      <div class="stab-panel" id="sp-bolleria">
+        <div class="prod-kpis" id="bo-kpis"></div>
+        <div class="insights" id="bo-insights"></div>
+        <div class="grid">
+          <div class="card span-6"><h2>Bollería por tipo</h2><div id="bo-chart-qty"></div></div>
+          <div class="card span-6"><h2>Bollería por hora</h2><div id="bo-chart-hora"></div></div>
+        </div>
+      </div>
+
+      <div class="stab-panel" id="sp-bebidas">
+        <div class="prod-kpis" id="be-kpis"></div>
+        <div class="insights" id="be-insights"></div>
+        <div class="grid">
+          <div class="card span-6"><h2>Bebidas por tipo</h2><div id="be-chart-qty"></div></div>
+          <div class="card span-6"><h2>Bebidas por hora</h2><div id="be-chart-hora"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== HORARIOS ===== -->
+    <section class="tab-panel" id="tab-horarios">
+      <p class="alert-note" id="h-alert"></p>
+      <div class="slots" id="h-slots"></div>
+      <div class="grid">
+        <div class="card span-6"><h2>Transacciones por hora</h2><div id="h-chart-txn"></div></div>
+        <div class="card span-6"><h2>Facturación por hora</h2><div id="h-chart-rev"></div></div>
+        <div class="card span-6">
+          <h2>Categorías por hora</h2>
+          <p class="card-sub">Unidades vendidas, apiladas</p>
+          <div class="legend" id="h-legend-cat"></div>
+          <div id="h-chart-cat"></div>
+        </div>
+        <div class="card span-6">
+          <h2>Café vs. bebidas por hora</h2>
+          <div class="legend" id="h-legend-dual"></div>
+          <div id="h-chart-dual"></div>
+        </div>
+      </div>
+      <div class="insights" id="h-insights"></div>
+    </section>
+
     <footer class="note">
-      Conectado en vivo a Supabase. El día de hoy no se cuenta en ninguna métrica porque todavía se está generando.
+      Conectado en vivo a Supabase<span id="footer-rango"></span>. El día de hoy no se cuenta en ninguna métrica porque todavía se está generando.
     </footer>
   </div>
 

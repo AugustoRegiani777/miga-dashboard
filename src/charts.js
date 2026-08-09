@@ -78,7 +78,7 @@ export function barChart(container, items, { tooltipLine, highlightKey } = {}) {
 }
 
 // ---------- Apilado (mezcla de categorias por semana) ----------
-export function stackedBarChart(container, weeks, cats) {
+export function stackedBarChart(container, weeks, cats, { fmt = euros, tooltipLabel = (w) => `semana del ${w.label}` } = {}) {
   container.innerHTML = "";
   if (weeks.length === 0) {
     container.innerHTML = `<p class="empty-msg">Sin datos suficientes todavía.</p>`;
@@ -109,7 +109,7 @@ export function stackedBarChart(container, weeks, cats) {
         x, y: y + 1, width: barW, height: Math.max(h - 2, 0), rx: 3, ry: 3,
         fill: `var(${c.cssVar})`, class: "bar-rect"
       });
-      rect.addEventListener("mousemove", (e) => showTip(e, `<b>${c.label}</b> · semana del ${w.label}<br>${euros(val)}`));
+      rect.addEventListener("mousemove", (e) => showTip(e, `<b>${c.label}</b> · ${tooltipLabel(w)}<br>${fmt(val)}`));
       rect.addEventListener("mouseleave", hideTip);
       svg.appendChild(rect);
       cursorY = y;
@@ -156,6 +156,103 @@ export function heatStrip(container, items) {
       peak.textContent = "pico";
       svg.appendChild(peak);
     }
+  });
+  container.appendChild(svg);
+}
+
+export function renderLegend(container, series) {
+  container.innerHTML = series.map((s) =>
+    `<span class="item"><span class="swatch" style="background:var(${s.cssVar})"></span>${s.label}</span>`
+  ).join("");
+}
+
+// Paleta generica para comparaciones ad-hoc (top 3 productos, mes A vs mes
+// B) que no son las 4 categorias fijas — reutiliza los mismos 4 tonos ya
+// validados en vez de inventar colores nuevos sin chequear.
+export const SERIES_COLORS = ["--s-sandwiches", "--s-cafe", "--s-bebidas", "--s-bolleria"];
+
+// ---------- Barras agrupadas (ej. Julio vs Agosto por dia de semana) ----------
+export function groupedBarChart(container, groupLabels, series, { fmt = euros } = {}) {
+  container.innerHTML = "";
+  if (groupLabels.length === 0 || series.length === 0) {
+    container.innerHTML = `<p class="empty-msg">Sin datos suficientes todavía.</p>`;
+    return;
+  }
+  const W = 620, H = 230, padL = 10, padR = 10, padT = 10, padB = 26;
+  const max = Math.max(...series.flatMap((s) => s.data), 1);
+  const n = groupLabels.length;
+  const groupW = (W - padL - padR) / n;
+  const barW = (groupW * 0.72) / series.length;
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H, role: "img" });
+
+  [0.25, 0.5, 0.75, 1].forEach((f) => {
+    const y = padT + (H - padT - padB) * (1 - f);
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y, y2: y, class: "grid-line" }));
+  });
+  svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: H - padB, y2: H - padB, class: "axis-line" }));
+
+  groupLabels.forEach((label, gi) => {
+    const gx = padL + gi * groupW + groupW * 0.14;
+    series.forEach((s, si) => {
+      const val = s.data[gi] || 0;
+      const h = (val / max) * (H - padT - padB);
+      const x = gx + si * barW;
+      const y = H - padB - h;
+      const rect = svgEl("rect", {
+        x, y, width: barW * 0.86, height: Math.max(h, 2), rx: 3, ry: 3,
+        fill: `var(${s.cssVar})`, class: "bar-rect"
+      });
+      rect.addEventListener("mousemove", (e) => showTip(e, `<b>${s.label}</b> · ${label}<br>${fmt(val)}`));
+      rect.addEventListener("mouseleave", hideTip);
+      svg.appendChild(rect);
+    });
+    const t = svgEl("text", { x: gx + (barW * series.length) / 2, y: H - padB + 15, "text-anchor": "middle", class: "cat-label" });
+    t.textContent = label;
+    svg.appendChild(t);
+  });
+  container.appendChild(svg);
+}
+
+// ---------- Lineas (ej. top 3 productos por hora) ----------
+export function lineChart(container, xLabels, series, { valueSuffix = "" } = {}) {
+  container.innerHTML = "";
+  if (xLabels.length === 0 || series.length === 0) {
+    container.innerHTML = `<p class="empty-msg">Sin datos suficientes todavía.</p>`;
+    return;
+  }
+  const W = 620, H = 220, padL = 10, padR = 10, padT = 12, padB = 26;
+  const max = Math.max(...series.flatMap((s) => s.data), 1);
+  const n = xLabels.length;
+  const stepX = (W - padL - padR) / Math.max(n - 1, 1);
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H, role: "img" });
+
+  [0.25, 0.5, 0.75, 1].forEach((f) => {
+    const y = padT + (H - padT - padB) * (1 - f);
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y, y2: y, class: "grid-line" }));
+  });
+  svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: H - padB, y2: H - padB, class: "axis-line" }));
+
+  const yOf = (v) => H - padB - (v / max) * (H - padT - padB);
+  const xOf = (i) => padL + i * stepX;
+
+  series.forEach((s) => {
+    const pts = s.data.map((v, i) => [xOf(i), yOf(v)]);
+    const d = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(" ");
+    svg.appendChild(svgEl("path", { d, fill: "none", stroke: `var(${s.cssVar})`, "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round" }));
+    pts.forEach(([x, y], i) => {
+      const dot = svgEl("circle", { cx: x, cy: y, r: 7, fill: "transparent", class: "bar-rect" });
+      dot.addEventListener("mousemove", (e) => showTip(e, `<b>${s.label}</b> · ${xLabels[i]}<br>${s.data[i]}${valueSuffix}`));
+      dot.addEventListener("mouseleave", hideTip);
+      svg.appendChild(dot);
+      svg.appendChild(svgEl("circle", { cx: x, cy: y, r: 3, fill: `var(${s.cssVar})`, "pointer-events": "none" }));
+    });
+  });
+
+  xLabels.forEach((label, i) => {
+    if (n > 16 && i % 2 !== 0) return;
+    const t = svgEl("text", { x: xOf(i), y: H - padB + 14, "text-anchor": "middle", class: "cat-label" });
+    t.textContent = label;
+    svg.appendChild(t);
   });
   container.appendChild(svg);
 }
