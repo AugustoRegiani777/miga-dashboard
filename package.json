@@ -1,0 +1,8 @@
+{
+  "name": "miga-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node -e \"console.log('\\n  App: http://localhost:3000\\n')\" && npx serve . --no-clipboard"
+  }
+}

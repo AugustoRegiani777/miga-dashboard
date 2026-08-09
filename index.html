@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel — Uno de Miga</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+
+  <!-- ---------- Login ---------- -->
+  <section id="login-screen" class="login-screen">
+    <form id="login-form" class="login-card">
+      <p class="eyebrow">Uno de Miga · Panel</p>
+      <h1>Iniciar sesión</h1>
+      <label class="field">
+        Usuario
+        <input type="text" id="login-usuario" autocomplete="username" required />
+      </label>
+      <label class="field">
+        Contraseña
+        <input type="password" id="login-password" autocomplete="current-password" required />
+      </label>
+      <button type="submit" id="login-submit" class="primary-btn">Entrar</button>
+      <p class="login-error" id="login-error" hidden></p>
+    </form>
+  </section>
+
+  <!-- ---------- Dashboard ---------- -->
+  <div class="wrap" id="dashboard-screen" hidden>
+
+    <header class="top">
+      <div class="brand-block">
+        <p class="eyebrow">Uno de Miga · Panel de negocio</p>
+        <h1>Cómo viene el local</h1>
+        <p class="sub" id="rango-sub">Datos en vivo desde Supabase.</p>
+      </div>
+      <div class="header-actions">
+        <div class="range-picker" id="range-picker" aria-label="Rango de fechas">
+          <button type="button" class="range-chip active" data-range="semana">Esta semana</button>
+          <button type="button" class="range-chip" data-range="semana-pasada">Semana pasada</button>
+          <button type="button" class="range-chip" data-range="mes">Este mes</button>
+          <button type="button" class="range-chip" data-range="todo">Todo</button>
+        </div>
+        <button type="button" id="logout-btn" class="ghost-btn">Salir</button>
+      </div>
+    </header>
+
+    <section class="kpis" id="kpis" aria-label="Resumen del período"></section>
+
+    <section class="grid">
+      <div class="card span-8">
+        <h2>Ventas por día</h2>
+        <p class="card-sub" id="dias-sub">Días del período seleccionado</p>
+        <div id="chart-dias"></div>
+      </div>
+
+      <div class="card span-4">
+        <h2>Productos más vendidos</h2>
+        <p class="card-sub">Período seleccionado, por facturación</p>
+        <div class="rank-list" id="rank-productos"></div>
+      </div>
+
+      <div class="card span-7">
+        <h2>Mezcla de categorías</h2>
+        <p class="card-sub">Últimas 4 semanas completas</p>
+        <div class="legend" id="legend-categorias"></div>
+        <div id="chart-categorias"></div>
+      </div>
+
+      <div class="card span-5">
+        <h2>Café, alfajores y medialunas</h2>
+        <p class="card-sub">Período seleccionado</p>
+        <div class="trio" id="foco-trio"></div>
+      </div>
+
+      <div class="card span-7">
+        <h2>¿Cuándo vendemos más?</h2>
+        <p class="card-sub">Ventas por hora, período seleccionado</p>
+        <div id="chart-horas"></div>
+      </div>
+
+      <div class="card span-5">
+        <h2>Por día de la semana</h2>
+        <p class="card-sub">Período seleccionado</p>
+        <div id="chart-semana"></div>
+      </div>
+
+      <div class="card span-4 locked">
+        <span class="badge">Próximamente</span>
+        <h2>% de ventas con combo</h2>
+        <p class="why">El descuento ya queda registrado en cada venta, pero hay que separarlo bien de otros ajustes de precio antes de graficarlo.</p>
+      </div>
+
+      <div class="card span-4 locked">
+        <span class="badge">Próximamente</span>
+        <h2>Pedidos vs. mostrador</h2>
+        <p class="why">Falta conectar los datos de Pedidos a este panel.</p>
+      </div>
+
+      <div class="card span-4 locked">
+        <span class="badge">Próximamente</span>
+        <h2>Margen por sandwich</h2>
+        <p class="why">Necesita el costo de cada receta — el dato existe, falta cruzarlo con las ventas.</p>
+      </div>
+    </section>
+
+    <footer class="note">
+      Conectado en vivo a Supabase. El día de hoy no se cuenta en ninguna métrica porque todavía se está generando.
+    </footer>
+  </div>
+
+  <div class="viz-tooltip" id="tooltip"></div>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
