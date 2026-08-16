@@ -44,6 +44,7 @@
       <button type="button" class="tab-btn" data-tab="facturacion">Facturación</button>
       <button type="button" class="tab-btn" data-tab="productos">Productos</button>
       <button type="button" class="tab-btn" data-tab="horarios">Horarios</button>
+      <button type="button" class="tab-btn" data-tab="operacion">Operación</button>
     </nav>
 
     <p id="loading-msg" class="empty-msg" style="margin: 20px 0;">Consultando Supabase…</p>
@@ -78,37 +79,76 @@
 
     <!-- ===== FACTURACIÓN ===== -->
     <section class="tab-panel" id="tab-facturacion">
-      <p class="alert-note" id="f-alert"></p>
-      <section class="kpis" id="f-kpis"></section>
-      <div class="grid">
-        <div class="card span-12">
-          <h2>Facturación diaria — todas las semanas</h2>
-          <p class="card-sub">Naranja = fin de semana · azul = entre semana · el lunes queda marcado aparte</p>
-          <div id="f-chart-dias"></div>
-        </div>
-        <div class="card span-6">
-          <h2>Total por semana</h2>
-          <div id="f-chart-semanas"></div>
-        </div>
-        <div class="card span-6">
-          <h2>Promedio por día de semana</h2>
-          <div class="range-picker" id="f-dow-toggle">
-            <button type="button" class="range-chip active" data-mode="abs">€ totales</button>
-            <button type="button" class="range-chip" data-mode="hora">€ por hora abierta</button>
+      <div class="range-picker" id="f-modo-toggle">
+        <button type="button" class="range-chip active" data-modo="general">General</button>
+        <button type="button" class="range-chip" data-modo="dia">Por día</button>
+        <button type="button" class="range-chip" data-modo="semana">Comparar semanas</button>
+        <button type="button" class="range-chip" data-modo="mes">Por mes</button>
+      </div>
+
+      <div class="modo-panel active" id="f-modo-general">
+        <p class="alert-note" id="f-alert"></p>
+        <section class="kpis" id="f-kpis"></section>
+        <div class="grid">
+          <div class="card span-12">
+            <h2>Facturación diaria — todas las semanas</h2>
+            <p class="card-sub">Naranja = fin de semana · azul = entre semana · el lunes queda marcado aparte</p>
+            <div id="f-chart-dias"></div>
           </div>
-          <div id="f-chart-dow"></div>
+          <div class="card span-6">
+            <h2>Total por semana</h2>
+            <div id="f-chart-semanas"></div>
+          </div>
+          <div class="card span-6">
+            <h2>Promedio por día de semana</h2>
+            <div class="range-picker" id="f-dow-toggle">
+              <button type="button" class="range-chip active" data-mode="abs">€ totales</button>
+              <button type="button" class="range-chip" data-mode="hora">€ por hora abierta</button>
+            </div>
+            <div id="f-chart-dow"></div>
+          </div>
+          <div class="card span-6">
+            <h2 id="f-meses-titulo">Comparación por mes</h2>
+            <p class="card-sub">Promedio por día de semana</p>
+            <div class="legend" id="f-legend-meses"></div>
+            <div id="f-chart-meses"></div>
+          </div>
+          <div class="card span-6">
+            <h2>Tendencia semanal</h2>
+            <p class="card-sub">Promedio diario sin contar lunes</p>
+            <div id="f-chart-tendencia"></div>
+          </div>
         </div>
-        <div class="card span-6">
-          <h2 id="f-meses-titulo">Comparación por mes</h2>
-          <p class="card-sub">Promedio por día de semana</p>
-          <div class="legend" id="f-legend-meses"></div>
-          <div id="f-chart-meses"></div>
+      </div>
+
+      <div class="modo-panel" id="f-modo-dia">
+        <div class="periodo-selector">
+          <label>Elegí un día
+            <select id="f-dia-select"></select>
+          </label>
         </div>
-        <div class="card span-6">
-          <h2>Tendencia semanal</h2>
-          <p class="card-sub">Promedio diario sin contar lunes</p>
-          <div id="f-chart-tendencia"></div>
+        <div id="f-ficha-dia"></div>
+      </div>
+
+      <div class="modo-panel" id="f-modo-semana">
+        <div class="periodo-selector">
+          <label>Semana A
+            <select id="f-semana-a"></select>
+          </label>
+          <label>Semana B
+            <select id="f-semana-b"></select>
+          </label>
         </div>
+        <div id="f-comparacion-semanas"></div>
+      </div>
+
+      <div class="modo-panel" id="f-modo-mes">
+        <div class="periodo-selector">
+          <label>Elegí un mes
+            <select id="f-mes-select"></select>
+          </label>
+        </div>
+        <div id="f-vista-mes"></div>
       </div>
     </section>
 
@@ -187,6 +227,55 @@
         </div>
       </div>
       <div class="insights" id="h-insights"></div>
+    </section>
+
+    <!-- ===== OPERACIÓN ===== -->
+    <section class="tab-panel" id="tab-operacion">
+      <div class="range-picker" id="op-modo-toggle">
+        <button type="button" class="range-chip active" data-modo="general">General</button>
+        <button type="button" class="range-chip" data-modo="dia">Por día</button>
+        <button type="button" class="range-chip" data-modo="mes">Por mes</button>
+      </div>
+
+      <div class="modo-panel active" id="op-modo-general">
+        <p class="alert-note" id="op-alert"></p>
+        <section class="kpis" id="op-kpis"></section>
+        <div class="grid">
+          <div class="card span-6">
+            <h2>Ranking ToGoo por producto</h2>
+            <p class="card-sub">Todo el período</p>
+            <div class="rank-list" id="op-rank-togoo"></div>
+          </div>
+          <div class="card span-6">
+            <h2>Producción por producto</h2>
+            <p class="card-sub" id="op-produccion-sub">Todo el período</p>
+            <div class="rank-list" id="op-rank-produccion"></div>
+          </div>
+          <div class="card span-12">
+            <h2>Ajustes de stock</h2>
+            <p class="card-sub">Bajas y recuentos manuales, todo el período</p>
+            <div id="op-tabla-ajustes"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modo-panel" id="op-modo-dia">
+        <div class="periodo-selector">
+          <label>Elegí un día
+            <select id="op-dia-select"></select>
+          </label>
+        </div>
+        <div id="op-ficha-dia"></div>
+      </div>
+
+      <div class="modo-panel" id="op-modo-mes">
+        <div class="periodo-selector">
+          <label>Elegí un mes
+            <select id="op-mes-select"></select>
+          </label>
+        </div>
+        <div id="op-vista-mes"></div>
+      </div>
     </section>
 
     <footer class="note">

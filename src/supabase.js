@@ -96,24 +96,44 @@ function authHeaders(accessToken) {
   };
 }
 
+const PAGE_SIZE = 1000;
+
 // Consulta de solo lectura, con renovacion automatica del token si vencio.
+// Pagina con offset hasta recibir una pagina vacia: un solo request puede
+// venir truncado en silencio por el limite de filas del proyecto de Supabase
+// (Settings -> API -> Max Rows, 1000 por defecto) y sin esto se pierden las
+// filas mas nuevas (las tablas se piden ordenadas ascendente).
 export async function sbGet(path) {
   let session = loadSession();
-  const doFetch = (accessToken) => fetch(`${BASE}${path}`, { headers: authHeaders(accessToken) });
 
-  let res = await doFetch(session?.accessToken);
-  if (res.status === 401 && session?.refreshToken) {
-    try {
-      session = await refreshSession(session);
-      res = await doFetch(session.accessToken);
-    } catch {
-      clearSession();
+  async function fetchOnce(url) {
+    let res = await fetch(url, { headers: authHeaders(session?.accessToken) });
+    if (res.status === 401 && session?.refreshToken) {
+      try {
+        session = await refreshSession(session);
+        res = await fetch(url, { headers: authHeaders(session.accessToken) });
+      } catch {
+        clearSession();
+      }
     }
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Supabase GET ${url} -> ${res.status}: ${text}`);
+    }
+    const text = await res.text();
+    return text ? JSON.parse(text) : [];
   }
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Supabase GET ${path} -> ${res.status}: ${text}`);
+
+  // Orden estable requerida para paginar sin duplicar ni saltear filas —
+  // sin ORDER BY, Postgres no garantiza el mismo orden entre requests.
+  const withOrder = path.includes("order=") ? path : `${path}${path.includes("?") ? "&" : "?"}order=id.asc`;
+
+  const all = [];
+  let offset = 0;
+  for (;;) {
+    const page = await fetchOnce(`${BASE}${withOrder}&limit=${PAGE_SIZE}&offset=${offset}`);
+    if (page.length === 0) return all;
+    all.push(...page);
+    offset += page.length;
   }
-  const text = await res.text();
-  return text ? JSON.parse(text) : [];
 }

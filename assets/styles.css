@@ -266,6 +266,46 @@ footer.note { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--l
 .pk .v { font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 .pk .s { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
 
+/* ---------- modos por periodo (dia / semana / mes) ---------- */
+.modo-panel { display: none; }
+.modo-panel.active { display: block; }
+
+.periodo-selector { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 18px; }
+.periodo-selector label {
+  display: grid; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-2);
+}
+.periodo-selector select {
+  font: inherit; font-size: 14px; padding: 9px 12px; border-radius: 8px; min-width: 180px;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+}
+
+/* ---------- ficha diaria (dia puntual, estilo cierre de caja) ---------- */
+.ficha-header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.ficha-header h2 { font-family: var(--serif); font-weight: 400; font-size: 20px; margin: 0; color: var(--ink); }
+.ficha-header .sub { font-size: 12.5px; color: var(--ink-3); }
+.ficha-seccion { margin-bottom: 22px; }
+.ficha-seccion h3 {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3);
+  margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+}
+
+.datatable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.datatable th, .datatable td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.datatable th { font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink-3); }
+.datatable td { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.datatable td.num, .datatable th.num { text-align: right; }
+.datatable td.strong { color: var(--ink); font-weight: 700; }
+.datatable tbody tr:last-child td { border-bottom: none; }
+.datatable .neg { color: var(--critical); }
+
+/* ---------- delta de comparacion (semana A vs B) ---------- */
+.d-value {
+  display: inline-block; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  padding: 3px 9px; border-radius: 999px; background: var(--surface-raised); border: 1px solid var(--line); color: var(--ink-2);
+}
+.d-value.up { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.d-value.down { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 40%, var(--line)); }
+
 @media (max-width: 880px) {
   .kpis { grid-template-columns: repeat(2, 1fr); }
   .card.span-8, .card.span-7, .card.span-6, .card.span-5, .card.span-4 { grid-column: span 12; }

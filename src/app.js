@@ -1,7 +1,7 @@
 import { signIn, signOut, restoreSession } from "./supabase.js";
 import { cargarTodo, HORAS_OPERATIVAS } from "./data.js";
 import {
-  initTooltip, barChart, stackedBarChart, groupedBarChart, lineChart, heatStrip,
+  initTooltip, barChart, stackedBarChart, groupedBarChart, lineChart,
   rankingList, renderLegend, euros, pct, SERIES_COLORS
 } from "./charts.js";
 
@@ -121,7 +121,9 @@ function renderResumen() {
     tooltipLine: (x) => `<b>${x.label}</b><br>${euros(x.value)} promedio`
   });
 
-  heatStrip(document.querySelector("#r-chart-hora"), porHora.map((h) => ({ label: String(h.hora), value: h.txn })));
+  barChart(document.querySelector("#r-chart-hora"), porHora.map((h) => ({ label: h.hora + "h", value: h.txn })), {
+    tooltipLine: (x) => `<b>${x.label}</b><br>${x.value} transacciones`
+  });
 }
 
 // ============================================================
@@ -204,6 +206,308 @@ function renderDowChart() {
   barChart(document.querySelector("#f-chart-dow"), items, {
     tooltipLine: (x) => `<b>${x.label}</b><br>${euros(x.value)}${dowMode === "hora" ? "/h" : ""}`
   });
+}
+
+// ============================================================
+// PERÍODO: ficha diaria, comparación de semanas, vista por mes
+// (compartido entre Facturación y Operación)
+// ============================================================
+const CATEGORIA_LABEL = { sandwiches: "Sandwiches", bolleria: "Bollería", cafe: "Café", bebidas: "Bebidas" };
+
+function fechasDeSemana(semana) { return datos.dias.filter((d) => d.semana === semana).map((d) => d.fecha); }
+function fechasDeMes(mes) { return datos.dias.filter((d) => d.mesLabel === mes).map((d) => d.fecha); }
+function deltaPct(a, b) { return b === 0 ? null : ((a - b) / b) * 100; }
+
+function resumenPeriodo(fechas) {
+  const set = new Set(fechas);
+  const diasPeriodo = datos.dias.filter((d) => set.has(d.fecha));
+  const total = diasPeriodo.reduce((s, d) => s + d.total, 0);
+  const transacciones = diasPeriodo.reduce((s, d) => s + d.count, 0);
+  const ingresosTogoo = fechas.reduce((s, f) => s + (datos.togooMontoPorDia.get(f) || 0), 0);
+  let sandwichesVendidos = 0, produccionTotal = 0, togooUnidades = 0;
+  for (const f of fechas) {
+    // Ventas reales de sandwiches: siempre disponible (viene de detalle_venta),
+    // a diferencia del arrastre de produccionVsVentasPorDia que solo existe
+    // desde primerDiaConProduccion — no conviene mezclar ambas fuentes.
+    const ventasDia = datos.ventasPorProductoPorDia.get(f);
+    if (ventasDia) {
+      for (const [id, p] of ventasDia) if (datos.CATEGORIA.get(id) === "sandwiches") sandwichesVendidos += p.cantidad;
+    }
+    const prodDia = datos.produccionPorDia.get(f);
+    if (prodDia) produccionTotal += [...prodDia.values()].reduce((s, c) => s + c, 0);
+    const togooDia = datos.togooPorDia.get(f);
+    if (togooDia) togooUnidades += [...togooDia.values()].reduce((s, p) => s + p.cantidad, 0);
+  }
+  return {
+    dias: diasPeriodo.length, total, transacciones,
+    ticketMedio: transacciones > 0 ? total / transacciones : 0,
+    ingresosVentas: total - ingresosTogoo, ingresosTogoo,
+    sandwichesVendidos, produccionTotal, togooUnidades
+  };
+}
+
+function datosDelDia(fecha) {
+  const dia = datos.dias.find((d) => d.fecha === fecha);
+  const ingresosTogoo = datos.togooMontoPorDia.get(fecha) || 0;
+  const totalDia = dia ? dia.total : 0;
+
+  const ventasDia = datos.ventasPorProductoPorDia.get(fecha) || new Map();
+  const prodDia = datos.produccionPorDia.get(fecha) || new Map();
+  const togooDia = datos.togooPorDia.get(fecha) || new Map();
+  const ajustesDia = datos.ajustesPorDia.get(fecha) || [];
+
+  const filasSandwich = datos.produccionVsVentasPorDia.get(fecha) || [];
+  const esEstimado = filasSandwich.length > 0 && filasSandwich[0].estimado;
+
+  const sandwichesVendidos = [...ventasDia.entries()].filter(([id]) => datos.CATEGORIA.get(id) === "sandwiches").reduce((s, [, p]) => s + p.cantidad, 0);
+  const sandwichesQuedan = filasSandwich.length ? filasSandwich.reduce((s, f) => s + f.quedan, 0) : null;
+  const bebidasVendidas = [...ventasDia.values()].filter((p) => p.categoria === "bebidas").reduce((s, p) => s + p.cantidad, 0);
+  const togooUnidadesTotal = [...togooDia.values()].reduce((s, p) => s + p.cantidad, 0);
+
+  const produccionPorCategoria = new Map();
+  for (const [prodId, cant] of prodDia) {
+    const cat = datos.CATEGORIA.get(prodId) || "otros";
+    const arr = produccionPorCategoria.get(cat) || [];
+    arr.push({ nombre: datos.NOMBRE_PRODUCTO.get(prodId) || prodId, cantidad: cant });
+    produccionPorCategoria.set(cat, arr);
+  }
+
+  const ventasPorCategoria = new Map();
+  for (const p of ventasDia.values()) {
+    const arr = ventasPorCategoria.get(p.categoria) || [];
+    arr.push(p);
+    ventasPorCategoria.set(p.categoria, arr);
+  }
+  for (const arr of ventasPorCategoria.values()) arr.sort((a, b) => b.total - a.total);
+
+  // Si este es el primer día de su mes, mostrar el recuento explícito que
+  // hizo falta para arrancar el mes sin números imposibles (ver data.js) —
+  // en vez de un salto raro sin explicar en "Quedan".
+  const esInicioDeMes = dia && datos.dias.find((d) => d.mesLabel === dia.mesLabel)?.fecha === fecha;
+  const recuentoInicioMes = esInicioDeMes ? datos.recuentosInicioMes.filter((r) => r.mesLabel === dia.mesLabel) : [];
+
+  return {
+    fecha, dia, transacciones: dia ? dia.count : 0,
+    ingresosVentas: totalDia - ingresosTogoo, ingresosTogoo, totalDia,
+    sandwichesVendidos, sandwichesQuedan, bebidasVendidas, togooUnidadesTotal, esEstimado,
+    produccionPorCategoria, ventasPorCategoria,
+    togooDia: [...togooDia.values()].sort((a, b) => b.cantidad - a.cantidad),
+    ajustesDia, filasSandwich, recuentoInicioMes
+  };
+}
+
+function renderFichaDia(container, fecha) {
+  if (!fecha) { container.innerHTML = `<p class="empty-msg">Elegí un día.</p>`; return; }
+  const d = datosDelDia(fecha);
+  if (!d.dia) { container.innerHTML = `<p class="empty-msg">Sin ventas registradas ese día.</p>`; return; }
+
+  const kpisHtml = [
+    { l: "Transacciones", v: String(d.transacciones) },
+    { l: "Ingresos ventas", v: euros(d.ingresosVentas) },
+    { l: "Ingresos ToGoo", v: euros(d.ingresosTogoo) },
+    { l: "Total general", v: euros(d.totalDia) },
+    { l: "Sandwiches vendidos", v: String(d.sandwichesVendidos) },
+    { l: "Sandwiches quedan", v: d.sandwichesQuedan == null ? "—" : String(d.sandwichesQuedan) },
+    { l: "Bebidas vendidas", v: String(d.bebidasVendidas) },
+    { l: "Salidas ToGoo (uds)", v: String(d.togooUnidadesTotal) }
+  ].map((k) => `<div class="kpi"><p class="label">${k.l}</p><p class="value">${k.v}</p></div>`).join("");
+
+  const recuentoHtml = d.recuentoInicioMes.length ? `
+    <div class="ficha-seccion">
+      <h3>Recuento al iniciar ${cap(d.dia.mesLabel)}</h3>
+      <p class="empty-msg" style="margin-bottom:8px;">El arrastre de estos productos no cerraba solo con producción y ventas registradas — se ajustó al mínimo necesario para que "Quedan" nunca muestre un número imposible (negativo). Mismo criterio que un recuento físico real: la diferencia queda visible acá, no escondida.</p>
+      <table class="datatable">
+        <thead><tr><th>Producto</th><th class="num">Ajuste de nivelación</th></tr></thead>
+        <tbody>${d.recuentoInicioMes.map((r) => `<tr><td>${r.nombre}</td><td class="num strong">+${r.ajuste}</td></tr>`).join("")}</tbody>
+      </table>
+    </div>` : "";
+
+  const sandwichTableHtml = d.filasSandwich.length ? `
+    ${d.esEstimado ? `<p class="empty-msg" style="margin-bottom:8px;">Sin producción real cargada ese día (arranca el ${fmtFecha(datos.primerDiaConProduccion)}) — "Hoy" se estima igual a lo vendido, sin sobra ni falta.</p>` : ""}
+    <p class="empty-msg" style="margin-bottom:8px;">"Quedan" es la suma corrida día a día desde el ${fmtFecha(datos.desde)} (producción − vendidos − ToGoo + ajustes). "Sin explicar" muestra otros movimientos del ledger real (ej. devoluciones) ya incluidos en "Quedan".</p>
+    ${recuentoHtml}
+    <table class="datatable">
+      <thead><tr><th>Sandwich</th><th class="num">Ayer</th><th class="num">Hoy</th><th class="num">Vendidos</th><th class="num">ToGoo</th><th class="num">Ajuste</th><th class="num">Sin explicar</th><th class="num">Quedan</th></tr></thead>
+      <tbody>${d.filasSandwich.map((f) => `<tr><td>${f.nombre}</td><td class="num">${f.ayer == null ? "—" : f.ayer}</td><td class="num">${f.hoy}</td><td class="num">${f.vendidos}</td><td class="num">${f.togoo}</td><td class="num${f.ajuste ? (f.ajuste < 0 ? " neg" : "") : ""}">${f.ajuste > 0 ? "+" : ""}${f.ajuste || 0}</td><td class="num${f.sinExplicar ? (f.sinExplicar < 0 ? " neg" : "") : ""}">${f.sinExplicar == null ? "—" : (f.sinExplicar > 0 ? "+" : "") + f.sinExplicar}</td><td class="num strong${f.quedan < 0 ? " neg" : ""}">${f.quedan}</td></tr>`).join("")}</tbody>
+    </table>` : `<p class="empty-msg">Sin datos ese día.</p>`;
+
+  const produccionHtml = [...d.produccionPorCategoria.entries()].map(([cat, arr]) => `
+    <div class="ficha-seccion"><h3>Producción — ${CATEGORIA_LABEL[cat] || cat} (${arr.reduce((s, p) => s + p.cantidad, 0)})</h3>
+      <table class="datatable"><tbody>${arr.sort((a, b) => b.cantidad - a.cantidad).map((p) => `<tr><td>${p.nombre}</td><td class="num strong">${p.cantidad}</td></tr>`).join("")}</tbody></table>
+    </div>`).join("");
+
+  const ventasHtml = [...d.ventasPorCategoria.entries()].map(([cat, arr]) => `
+    <div class="ficha-seccion"><h3>Ventas — ${CATEGORIA_LABEL[cat] || cat}</h3>
+      <table class="datatable">
+        <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Monto</th></tr></thead>
+        <tbody>${arr.map((p) => `<tr><td>${p.nombre}</td><td class="num">${p.cantidad}</td><td class="num strong">${euros(p.total)}</td></tr>`).join("")}</tbody>
+      </table>
+    </div>`).join("");
+
+  const togooHtml = d.togooDia.length ? `
+    <table class="datatable">
+      <thead><tr><th>Producto</th><th class="num">Cant.</th></tr></thead>
+      <tbody>${d.togooDia.map((p) => `<tr><td>${p.nombre}</td><td class="num strong">${p.cantidad}</td></tr>`).join("")}</tbody>
+    </table>` : `<p class="empty-msg">Sin salidas ToGoo ese día.</p>`;
+
+  const ajustesHtml = d.ajustesDia.length ? `
+    <table class="datatable">
+      <thead><tr><th>Hora</th><th>Producto</th><th class="num">Cant.</th><th>Motivo</th></tr></thead>
+      <tbody>${d.ajustesDia.map((a) => `<tr><td>${a.hora}</td><td>${a.nombre}</td><td class="num${a.cantidad < 0 ? " neg" : ""}">${a.cantidad > 0 ? "+" : ""}${a.cantidad}</td><td>${a.motivo}</td></tr>`).join("")}</tbody>
+    </table>` : `<p class="empty-msg">Sin ajustes de stock ese día.</p>`;
+
+  container.innerHTML = `
+    <div class="ficha-header"><h2>${d.dia.dow} ${fmtFecha(fecha)}</h2><span class="sub">${d.dia.semana}</span></div>
+    <section class="kpis">${kpisHtml}</section>
+    <div class="ficha-seccion"><h3>Producción vs. ventas — Sandwiches</h3>${sandwichTableHtml}</div>
+    ${produccionHtml}
+    ${ventasHtml}
+    <div class="ficha-seccion"><h3>Salidas ToGoo</h3>${togooHtml}</div>
+    <div class="ficha-seccion"><h3>Ajustes de stock</h3>${ajustesHtml}</div>
+  `;
+}
+
+function renderComparacionSemanas(semanaA, semanaB) {
+  const container = document.querySelector("#f-comparacion-semanas");
+  if (!semanaA || !semanaB) { container.innerHTML = `<p class="empty-msg">Elegí dos semanas.</p>`; return; }
+  const rA = resumenPeriodo(fechasDeSemana(semanaA));
+  const rB = resumenPeriodo(fechasDeSemana(semanaB));
+
+  const filas = [
+    ["Facturación total", rA.total, rB.total, euros],
+    ["Transacciones", rA.transacciones, rB.transacciones, (v) => String(v)],
+    ["Ticket medio", rA.ticketMedio, rB.ticketMedio, euros],
+    ["Ingresos ToGoo", rA.ingresosTogoo, rB.ingresosTogoo, euros],
+    ["Sandwiches vendidos", rA.sandwichesVendidos, rB.sandwichesVendidos, (v) => String(v)],
+    ["Sandwiches producidos", rA.produccionTotal, rB.produccionTotal, (v) => String(v)],
+    ["Unidades ToGoo", rA.togooUnidades, rB.togooUnidades, (v) => String(v)]
+  ];
+  const filasHtml = filas.map(([label, a, b, fmt]) => {
+    const delta = deltaPct(a, b);
+    const deltaHtml = delta == null ? "—" : `<span class="d-value ${delta >= 0 ? "up" : "down"}">${pctTexto(delta)}</span>`;
+    return `<tr><td>${label}</td><td class="num strong">${fmt(a)}</td><td class="num">${deltaHtml}</td><td class="num strong">${fmt(b)}</td></tr>`;
+  }).join("");
+
+  container.innerHTML = `
+    <table class="datatable">
+      <thead><tr><th>Métrica</th><th class="num">${datos.semanaMeta.get(semanaA).label}</th><th class="num">Δ</th><th class="num">${datos.semanaMeta.get(semanaB).label}</th></tr></thead>
+      <tbody>${filasHtml}</tbody>
+    </table>
+  `;
+}
+
+function renderVistaMes(mesLabel) {
+  const container = document.querySelector("#f-vista-mes");
+  if (!mesLabel) { container.innerHTML = `<p class="empty-msg">Elegí un mes.</p>`; return; }
+  const fechas = fechasDeMes(mesLabel);
+  const r = resumenPeriodo(fechas);
+  const diasDelMes = datos.dias.filter((d) => d.mesLabel === mesLabel);
+
+  const kpisHtml = [
+    { l: "Facturación total", v: euros(r.total), s: `${r.dias} días` },
+    { l: "Transacciones", v: String(r.transacciones), s: `ticket medio ${euros(r.ticketMedio)}` },
+    { l: "Ingresos ToGoo", v: euros(r.ingresosTogoo) },
+    { l: "Sandwiches vendidos", v: String(r.sandwichesVendidos) },
+    { l: "Sandwiches producidos", v: String(r.produccionTotal) }
+  ].map((k) => `<div class="kpi"><p class="label">${k.l}</p><p class="value">${k.v}</p>${k.s ? `<span class="delta"><span class="vs">${k.s}</span></span>` : ""}</div>`).join("");
+
+  container.innerHTML = `<section class="kpis">${kpisHtml}</section><div class="card"><h2>Facturación diaria — ${cap(mesLabel)}</h2><div id="f-mes-chart-dias"></div></div>`;
+  barChart(document.querySelector("#f-mes-chart-dias"), diasDelMes.map((d) => ({
+    label: fmtFecha(d.fecha), value: d.total, flag: (d.dow === "Sáb" || d.dow === "Dom") ? "peak" : null
+  })), { highlightKey: "peak", tooltipLine: (x) => `<b>${x.label}</b><br>${euros(x.value)}` });
+}
+
+function poblarSelectores() {
+  const diaOpts = datos.dias.map((d) => `<option value="${d.fecha}">${fmtFecha(d.fecha)} (${d.dow})</option>`).join("");
+  const ultimaFecha = datos.dias[datos.dias.length - 1]?.fecha;
+  for (const sel of [document.querySelector("#f-dia-select"), document.querySelector("#op-dia-select")]) {
+    sel.innerHTML = diaOpts;
+    if (ultimaFecha) sel.value = ultimaFecha;
+  }
+
+  const semanaOpts = datos.semanas.map((s) => `<option value="${s}">${datos.semanaMeta.get(s).label}</option>`).join("");
+  const semA = document.querySelector("#f-semana-a");
+  const semB = document.querySelector("#f-semana-b");
+  semA.innerHTML = semanaOpts;
+  semB.innerHTML = semanaOpts;
+  if (datos.semanas.length >= 2) {
+    semA.value = datos.semanas[datos.semanas.length - 2];
+    semB.value = datos.semanas[datos.semanas.length - 1];
+  }
+
+  const mesOpts = datos.meses.map((m) => `<option value="${m}">${cap(m)}</option>`).join("");
+  const mesActual = datos.meses[datos.meses.length - 1];
+  for (const sel of [document.querySelector("#f-mes-select"), document.querySelector("#op-mes-select")]) {
+    sel.innerHTML = mesOpts;
+    if (mesActual) sel.value = mesActual;
+  }
+}
+
+function bindModoToggle(toggleSelector, panelPrefix, onModo) {
+  document.querySelector(toggleSelector).addEventListener("click", (e) => {
+    const btn = e.target.closest(".range-chip");
+    if (!btn) return;
+    const modo = btn.dataset.modo;
+    document.querySelectorAll(`${toggleSelector} .range-chip`).forEach((b) => b.classList.toggle("active", b === btn));
+    document.querySelectorAll(`[id^="${panelPrefix}-modo-"]`).forEach((p) => p.classList.remove("active"));
+    document.querySelector(`#${panelPrefix}-modo-${modo}`).classList.add("active");
+    onModo(modo);
+  });
+}
+
+// ============================================================
+// OPERACIÓN
+// ============================================================
+function renderOperacionGeneral() {
+  const { rankingTogoo, totalUnidadesTogoo, totalIngresosTogoo, pctTogooSobreProduccion, primerDiaConProduccion, ajustesPorDia, produccionPorDia, NOMBRE_PRODUCTO } = datos;
+
+  document.querySelector("#op-alert").textContent = primerDiaConProduccion
+    ? `La producción diaria en Supabase arranca el ${fmtFecha(primerDiaConProduccion)} — antes de esa fecha no hay dato de producción cargado (los KPIs de producción solo cuentan desde ahí).`
+    : "Todavía no hay producción cargada en Supabase.";
+
+  const produccionTotalGlobal = new Map();
+  for (const m of produccionPorDia.values()) {
+    for (const [id, cant] of m) produccionTotalGlobal.set(id, (produccionTotalGlobal.get(id) || 0) + cant);
+  }
+  const rankingProduccion = [...produccionTotalGlobal.entries()]
+    .map(([id, cant]) => ({ nombre: NOMBRE_PRODUCTO.get(id) || id, cantidad: cant }))
+    .sort((a, b) => b.cantidad - a.cantidad);
+  const totalProducido = rankingProduccion.reduce((s, r) => s + r.cantidad, 0);
+
+  let totalAjustes = 0;
+  for (const arr of ajustesPorDia.values()) totalAjustes += arr.length;
+
+  document.querySelector("#op-kpis").innerHTML = [
+    { l: "Unidades ToGoo", v: String(totalUnidadesTogoo) },
+    { l: "Ingresos ToGoo", v: euros(totalIngresosTogoo) },
+    { l: "% ToGoo sobre producción", v: pctTogooSobreProduccion != null ? `${pctTogooSobreProduccion.toFixed(1)}%` : "—", s: "solo sandwiches" },
+    { l: "Total producido", v: String(totalProducido), s: "todas las categorías" },
+    { l: "Ajustes de stock", v: String(totalAjustes), s: "movimientos registrados" }
+  ].map((k) => `<div class="kpi"><p class="label">${k.l}</p><p class="value">${k.v}</p>${k.s ? `<span class="delta"><span class="vs">${k.s}</span></span>` : ""}</div>`).join("");
+
+  rankingListHorizontal("#op-rank-togoo", rankingTogoo, (p) => p.cantidad, (v) => `${v} uds`);
+  rankingListHorizontal("#op-rank-produccion", rankingProduccion, (p) => p.cantidad, (v) => `${v} uds`);
+
+  const todosAjustes = [...ajustesPorDia.entries()]
+    .flatMap(([fecha, arr]) => arr.map((a) => ({ fecha, ...a })))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.hora.localeCompare(a.hora));
+  document.querySelector("#op-tabla-ajustes").innerHTML = todosAjustes.length ? `
+    <table class="datatable">
+      <thead><tr><th>Fecha</th><th>Hora</th><th>Producto</th><th class="num">Cant.</th><th>Motivo</th></tr></thead>
+      <tbody>${todosAjustes.map((a) => `<tr><td>${fmtFecha(a.fecha)}</td><td>${a.hora}</td><td>${a.nombre}</td><td class="num${a.cantidad < 0 ? " neg" : ""}">${a.cantidad > 0 ? "+" : ""}${a.cantidad}</td><td>${a.motivo}</td></tr>`).join("")}</tbody>
+    </table>` : `<p class="empty-msg">Sin ajustes de stock en el período.</p>`;
+}
+
+function renderOperacionMes(mesLabel) {
+  const container = document.querySelector("#op-vista-mes");
+  if (!mesLabel) { container.innerHTML = `<p class="empty-msg">Elegí un mes.</p>`; return; }
+  const r = resumenPeriodo(fechasDeMes(mesLabel));
+  container.innerHTML = `<section class="kpis">${[
+    { l: "Unidades ToGoo", v: String(r.togooUnidades) },
+    { l: "Ingresos ToGoo", v: euros(r.ingresosTogoo) },
+    { l: "Sandwiches producidos", v: String(r.produccionTotal) },
+    { l: "Sandwiches vendidos", v: String(r.sandwichesVendidos) }
+  ].map((k) => `<div class="kpi"><p class="label">${k.l}</p><p class="value">${k.v}</p></div>`).join("")}</section>`;
 }
 
 // ============================================================
@@ -368,6 +672,7 @@ function renderHorarios() {
 // ============================================================
 // NAVEGACIÓN
 // ============================================================
+let operacionRenderizado = false;
 function switchTab(name) {
   document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
   document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
@@ -376,6 +681,7 @@ function switchTab(name) {
   if (name === "facturacion") renderFacturacion();
   if (name === "productos") renderProductosTab(document.querySelector(".stab.active")?.dataset.stab || "sandwiches");
   if (name === "horarios") renderHorarios();
+  if (name === "operacion" && !operacionRenderizado) { renderOperacionGeneral(); operacionRenderizado = true; }
 }
 
 function switchStab(name) {
@@ -403,6 +709,23 @@ function bindEvents() {
     document.querySelectorAll("#f-dow-toggle .range-chip").forEach((b) => b.classList.toggle("active", b === btn));
     renderDowChart();
   });
+
+  bindModoToggle("#f-modo-toggle", "f", (modo) => {
+    if (modo === "dia") renderFichaDia(document.querySelector("#f-ficha-dia"), document.querySelector("#f-dia-select").value);
+    if (modo === "semana") renderComparacionSemanas(document.querySelector("#f-semana-a").value, document.querySelector("#f-semana-b").value);
+    if (modo === "mes") renderVistaMes(document.querySelector("#f-mes-select").value);
+  });
+  document.querySelector("#f-dia-select").addEventListener("change", (e) => renderFichaDia(document.querySelector("#f-ficha-dia"), e.target.value));
+  document.querySelector("#f-semana-a").addEventListener("change", () => renderComparacionSemanas(document.querySelector("#f-semana-a").value, document.querySelector("#f-semana-b").value));
+  document.querySelector("#f-semana-b").addEventListener("change", () => renderComparacionSemanas(document.querySelector("#f-semana-a").value, document.querySelector("#f-semana-b").value));
+  document.querySelector("#f-mes-select").addEventListener("change", (e) => renderVistaMes(e.target.value));
+
+  bindModoToggle("#op-modo-toggle", "op", (modo) => {
+    if (modo === "dia") renderFichaDia(document.querySelector("#op-ficha-dia"), document.querySelector("#op-dia-select").value);
+    if (modo === "mes") renderOperacionMes(document.querySelector("#op-mes-select").value);
+  });
+  document.querySelector("#op-dia-select").addEventListener("change", (e) => renderFichaDia(document.querySelector("#op-ficha-dia"), e.target.value));
+  document.querySelector("#op-mes-select").addEventListener("change", (e) => renderOperacionMes(e.target.value));
 }
 
 async function boot() {
@@ -412,6 +735,7 @@ async function boot() {
     dom.rangoSub.textContent = `Del ${fmtFecha(datos.desde)} al ${fmtFecha(datos.hasta)} · datos en vivo desde Supabase`;
     dom.footerRango.textContent = ` (${fmtFecha(datos.desde)} – ${fmtFecha(datos.hasta)})`;
     dom.loadingMsg.hidden = true;
+    poblarSelectores();
     renderResumen();
   } catch (error) {
     dom.loadingMsg.textContent = `No se pudo cargar: ${error.message}`;
