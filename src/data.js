@@ -41,7 +41,7 @@ export async function cargarTodo() {
   const hasta = ayerISO();
 
   const hoy = hoyISO();
-  const [ventas, detalles, productosSupabase, produccionRaw, movimientosRaw, stockActualRaw] = await Promise.all([
+  const [ventas, detalles, productosSupabase, produccionRaw, movimientosRaw, stockActualRaw, eventos] = await Promise.all([
     sbGet(`/ventas?select=id,fecha,hora,total_centavos,sale_mode,anulada&anulada=eq.false&fecha=gte.${desde}&fecha=lte.${hasta}&order=fecha.asc,id.asc`),
     sbGet(`/detalle_venta?select=venta_id,producto_id,producto_nombre,cantidad,subtotal_centavos,fecha&fecha=gte.${desde}&fecha=lte.${hasta}`),
     sbGet(`/productos?select=id,categoria_id,nombre,controla_stock`),
@@ -51,7 +51,12 @@ export async function cargarTodo() {
     // de cada cambio real de stock, se usa para anclar el arrastre contra la
     // realidad en vez de reconstruirlo a ciegas desde una suposicion.
     sbGet(`/movimientos_stock?select=producto_id,tipo,cantidad,motivo,fecha,creado_en&fecha=gte.${desde}&fecha=lte.${hoy}`),
-    sbGet(`/stock_productos?select=id,stock_actual`)
+    sbGet(`/stock_productos?select=id,stock_actual`),
+    // Sin filtro de rango: son pocas filas y puede haber eventos cargados a
+    // futuro (ej. un feriado ya sabido) ademas de pasados.
+    // .catch: si la tabla todavia no existe (falta correr la migracion SQL),
+    // que no tumbe TODO el dashboard — arranca con la lista vacia nomas.
+    sbGet(`/eventos_negocio?select=id,fecha,descripcion,categoria,creado_en&order=fecha.desc,id.desc`).catch(() => [])
   ]);
 
   // Categoria/nombre por producto, leidos en vivo de la tabla real (antes
@@ -599,6 +604,7 @@ export async function cargarTodo() {
     togooPorDia, togooMontoPorDia, rankingTogoo, totalUnidadesTogoo, totalIngresosTogoo, pctTogooSobreProduccion,
     ajustesPorDia,
     produccionVsVentasPorDia, derivaStockUltimoDia, recuentosInicioMes,
-    CATEGORIA, NOMBRE_PRODUCTO, sandwichIds
+    CATEGORIA, NOMBRE_PRODUCTO, sandwichIds,
+    eventos
   };
 }
