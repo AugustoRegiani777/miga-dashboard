@@ -117,15 +117,21 @@ export async function cargarTodo() {
     }];
   }));
 
-  // Mes real por dia — ya NO es el mes calendario del propio dia, es el mes
-  // de la semana a la que pertenece (ver semanaMeta arriba).
+  // Mes de cada dia: el mes CALENDARIO real del propio dia (no el de la
+  // semana a la que pertenece) — el mes de la semana (arriba, semanaMeta)
+  // sirve solo para etiquetar la semana entera ("S5 jul.") y NO se propaga
+  // a los dias sueltos. Antes si se propagaba, y una semana como 27/07-02/08
+  // (mes "jul." por su lunes) hacia que el 1 y 2 de agosto se contaran como
+  // julio, y que el 2-5 de julio (semana con lunes en junio) se contaran
+  // como junio — corriendo dias enteros de facturacion a un mes que no les
+  // corresponde en cualquier vista que agrupe por dia-calendario (Por mes,
+  // Comparar meses, KPIs del mes en curso).
   for (const d of dias) {
-    const meta = semanaMeta.get(d.semana);
-    d.mesLabel = meta.mesLabel;
-    d.semanaDelMes = meta.semanaDelMes;
+    d.mesLabel = new Date(d.fecha + "T00:00:00Z").toLocaleDateString("es-ES", { month: "short", timeZone: "UTC" });
+    d.semanaDelMes = semanaMeta.get(d.semana).semanaDelMes;
   }
 
-  const meses = [...new Set(semanas.map((s) => semanaMeta.get(s).mesLabel))];
+  const meses = [...new Set(dias.map((d) => d.mesLabel))];
 
   // Mismo dia-de-semana + misma semana-del-mes, comparado entre todos los
   // meses presentes (ej. "Sábado S1" en julio vs agosto) — la comparativa

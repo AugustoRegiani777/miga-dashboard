@@ -51,28 +51,52 @@
 
     <!-- ===== RESUMEN ===== -->
     <section class="tab-panel active" id="tab-resumen">
-      <section class="kpis" id="r-kpis"></section>
-      <div class="insights" id="r-insights"></div>
-      <div class="grid">
-        <div class="card span-8">
-          <h2>Facturación diaria</h2>
-          <p class="card-sub">Todo el período, con el fin de semana marcado</p>
-          <div id="r-chart-dias"></div>
-        </div>
-        <div class="card span-4">
-          <h2>Productos más vendidos</h2>
-          <p class="card-sub">Por facturación</p>
-          <div class="rank-list" id="r-rank-productos"></div>
-        </div>
-        <div class="card span-6">
-          <h2>Promedio por día de semana</h2>
-          <p class="card-sub">Sin contar los lunes (horario reducido)</p>
-          <div id="r-chart-dow"></div>
-        </div>
-        <div class="card span-6">
-          <h2>Transacciones por hora</h2>
-          <p class="card-sub">Todo el período</p>
-          <div id="r-chart-hora"></div>
+
+      <!-- AHORA: el mes en curso, lo mas inmediato -->
+      <div class="story-section">
+        <p class="story-eyebrow">Ahora</p>
+        <p class="story-headline" id="r-headline">Cargando…</p>
+        <section class="kpis kpis-compact" id="r-kpis"></section>
+      </div>
+
+      <!-- HITOS: records de toda la vida del negocio -->
+      <div class="story-section">
+        <p class="story-eyebrow">Hitos</p>
+        <h2 class="story-title">Lo mejor que hizo este negocio</h2>
+        <div class="hitos-row" id="r-hitos"></div>
+      </div>
+
+      <!-- CHICANAS: patrones que se repiten siempre -->
+      <div class="story-section">
+        <p class="story-eyebrow">Chicanas</p>
+        <h2 class="story-title">Lo que este negocio siempre hace</h2>
+        <div class="insights" id="r-insights"></div>
+      </div>
+
+      <!-- DETALLE: graficos de apoyo, mas chico -->
+      <div class="story-section story-section-detalle">
+        <p class="story-eyebrow">Detalle</p>
+        <div class="grid">
+          <div class="card span-8">
+            <h2>Facturación diaria</h2>
+            <p class="card-sub" id="r-chart-dias-sub">Con el fin de semana marcado</p>
+            <div id="r-chart-dias"></div>
+          </div>
+          <div class="card span-4">
+            <h2>Productos más vendidos</h2>
+            <p class="card-sub">Por facturación</p>
+            <div class="rank-list" id="r-rank-productos"></div>
+          </div>
+          <div class="card span-6">
+            <h2>Promedio por día de semana</h2>
+            <p class="card-sub">Sin contar los lunes (horario reducido)</p>
+            <div id="r-chart-dow"></div>
+          </div>
+          <div class="card span-6">
+            <h2>Transacciones por hora</h2>
+            <p class="card-sub">Todo el período</p>
+            <div id="r-chart-hora"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -82,16 +106,28 @@
       <div class="range-picker" id="f-modo-toggle">
         <button type="button" class="range-chip active" data-modo="general">General</button>
         <button type="button" class="range-chip" data-modo="dia">Por día</button>
+        <button type="button" class="range-chip" data-modo="semana-vista">Por semana</button>
         <button type="button" class="range-chip" data-modo="semana">Comparar semanas</button>
         <button type="button" class="range-chip" data-modo="mes">Por mes</button>
+        <button type="button" class="range-chip" data-modo="mes-comparar">Comparar meses</button>
       </div>
 
       <div class="modo-panel active" id="f-modo-general">
         <p class="alert-note" id="f-alert"></p>
         <section class="kpis" id="f-kpis"></section>
+
+        <div class="eventos-block">
+          <h2>Eventos importantes</h2>
+          <p class="card-sub">Los días que más se despegaron de lo normal — mirá qué pasó 24–48h antes (¿publicaste algo? ¿hubo un partido, un feriado?) para encontrar el patrón.</p>
+          <p class="eventos-subtitulo">Picos</p>
+          <div class="eventos-grid" id="f-eventos-picos"></div>
+          <p class="eventos-subtitulo">Caídas</p>
+          <div class="eventos-grid" id="f-eventos-flojos"></div>
+        </div>
+
         <div class="grid">
           <div class="card span-12">
-            <h2>Facturación diaria — todas las semanas</h2>
+            <h2 id="f-chart-dias-titulo">Facturación diaria</h2>
             <p class="card-sub">Naranja = fin de semana · azul = entre semana · el lunes queda marcado aparte</p>
             <div id="f-chart-dias"></div>
           </div>
@@ -130,11 +166,21 @@
         <div id="f-ficha-dia"></div>
       </div>
 
-      <div class="modo-panel" id="f-modo-semana">
+      <div class="modo-panel" id="f-modo-semana-vista">
         <div class="periodo-selector">
+          <label>Elegí una semana
+            <select id="f-semana-vista-select"></select>
+          </label>
+        </div>
+        <div id="f-vista-semana"></div>
+      </div>
+
+      <div class="modo-panel" id="f-modo-semana">
+        <div class="periodo-selector periodo-selector-comparar">
           <label>Semana A
             <select id="f-semana-a"></select>
           </label>
+          <span class="periodo-vs">vs</span>
           <label>Semana B
             <select id="f-semana-b"></select>
           </label>
@@ -149,6 +195,19 @@
           </label>
         </div>
         <div id="f-vista-mes"></div>
+      </div>
+
+      <div class="modo-panel" id="f-modo-mes-comparar">
+        <div class="periodo-selector periodo-selector-comparar">
+          <label>Mes A
+            <select id="f-mes-a"></select>
+          </label>
+          <span class="periodo-vs">vs</span>
+          <label>Mes B
+            <select id="f-mes-b"></select>
+          </label>
+        </div>
+        <div id="f-comparacion-meses"></div>
       </div>
     </section>
 
@@ -242,6 +301,11 @@
         <section class="kpis" id="op-kpis"></section>
         <div class="grid">
           <div class="card span-6">
+            <h2>ToGoo por sandwich</h2>
+            <p class="card-sub">Qué sabores salen más por esta vía · todo el período</p>
+            <div id="op-chart-togoo-sandwich"></div>
+          </div>
+          <div class="card span-6">
             <h2>Ranking ToGoo por producto</h2>
             <p class="card-sub">Todo el período</p>
             <div class="rank-list" id="op-rank-togoo"></div>
@@ -250,6 +314,11 @@
             <h2>Producción por producto</h2>
             <p class="card-sub" id="op-produccion-sub">Todo el período</p>
             <div class="rank-list" id="op-rank-produccion"></div>
+          </div>
+          <div class="card span-6">
+            <h2>Ajustes de stock por día</h2>
+            <p class="card-sub">Cuántos recuentos/correcciones hubo cada día — para ver cuándo se dan más errores</p>
+            <div id="op-chart-ajustes"></div>
           </div>
           <div class="card span-12">
             <h2>Ajustes de stock</h2>

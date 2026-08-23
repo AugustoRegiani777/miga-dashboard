@@ -10,13 +10,13 @@ export function initTooltip() {
   });
 }
 
-function showTip(evt, html) {
+export function showTip(evt, html) {
   tooltipEl.innerHTML = html;
   tooltipEl.style.left = evt.clientX + "px";
   tooltipEl.style.top = (evt.clientY - 10) + "px";
   tooltipEl.classList.add("show");
 }
-function hideTip() { tooltipEl.classList.remove("show"); }
+export function hideTip() { tooltipEl.classList.remove("show"); }
 
 function svgEl(tag, attrs) {
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
@@ -214,6 +214,10 @@ export function groupedBarChart(container, groupLabels, series, { fmt = euros } 
 }
 
 // ---------- Lineas (ej. top 3 productos por hora) ----------
+// `data` puede traer `null`/`undefined` para "sin dato ese punto" (ej. un
+// dia que todavia no paso, o antes de que arranque el rango cargado) — se
+// corta la linea ahi en vez de dibujar un cero falso que parezca una caida
+// real de facturacion.
 export function lineChart(container, xLabels, series, { valueSuffix = "" } = {}) {
   container.innerHTML = "";
   if (xLabels.length === 0 || series.length === 0) {
@@ -221,7 +225,8 @@ export function lineChart(container, xLabels, series, { valueSuffix = "" } = {})
     return;
   }
   const W = 620, H = 220, padL = 10, padR = 10, padT = 12, padB = 26;
-  const max = Math.max(...series.flatMap((s) => s.data), 1);
+  const valoresValidos = series.flatMap((s) => s.data.filter((v) => v != null));
+  const max = Math.max(...valoresValidos, 1);
   const n = xLabels.length;
   const stepX = (W - padL - padR) / Math.max(n - 1, 1);
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H, role: "img" });
@@ -236,12 +241,20 @@ export function lineChart(container, xLabels, series, { valueSuffix = "" } = {})
   const xOf = (i) => padL + i * stepX;
 
   series.forEach((s) => {
-    const pts = s.data.map((v, i) => [xOf(i), yOf(v)]);
-    const d = pts.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(" ");
+    let d = "";
+    let trazando = false;
+    s.data.forEach((v, i) => {
+      if (v == null) { trazando = false; return; }
+      const [x, y] = [xOf(i), yOf(v)];
+      d += trazando ? ` L${x},${y}` : `${d ? " " : ""}M${x},${y}`;
+      trazando = true;
+    });
     svg.appendChild(svgEl("path", { d, fill: "none", stroke: `var(${s.cssVar})`, "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round" }));
-    pts.forEach(([x, y], i) => {
+    s.data.forEach((v, i) => {
+      if (v == null) return;
+      const [x, y] = [xOf(i), yOf(v)];
       const dot = svgEl("circle", { cx: x, cy: y, r: 7, fill: "transparent", class: "bar-rect" });
-      dot.addEventListener("mousemove", (e) => showTip(e, `<b>${s.label}</b> · ${xLabels[i]}<br>${s.data[i]}${valueSuffix}`));
+      dot.addEventListener("mousemove", (e) => showTip(e, `<b>${s.label}</b> · ${xLabels[i]}<br>${v}${valueSuffix}`));
       dot.addEventListener("mouseleave", hideTip);
       svg.appendChild(dot);
       svg.appendChild(svgEl("circle", { cx: x, cy: y, r: 3, fill: `var(${s.cssVar})`, "pointer-events": "none" }));
