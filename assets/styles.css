@@ -194,6 +194,16 @@ svg text { font-family: var(--sans); fill: var(--ink-3); }
 .rank-track { grid-column: 2 / 4; height: 8px; border-radius: 5px; background: var(--line); overflow: hidden; margin-top: 2px; }
 .rank-fill { height: 100%; border-radius: 5px; background: var(--s-sandwiches); }
 
+/* ---------- tendencia por sabor (ticker estilo cripto) ---------- */
+.tendencia {
+  display: inline-flex; align-items: center; gap: 2px; margin-left: 6px;
+  font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+  padding: 1px 6px; border-radius: 999px; white-space: nowrap; vertical-align: middle;
+}
+.tendencia-up { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.tendencia-down { color: var(--critical); background: color-mix(in srgb, var(--critical) 14%, transparent); }
+.tendencia-stable { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+
 .card.locked { border-style: dashed; background: transparent; box-shadow: none; }
 .locked .badge {
   display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
@@ -227,6 +237,41 @@ footer.note { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--l
 .stab.active { background: var(--ink); border-color: var(--ink); color: var(--page); }
 .stab-panel { display: none; }
 .stab-panel.active { display: block; }
+
+/* ---------- resumen narrativo: franjas por orden temporal ---------- */
+.story-section { margin-bottom: 34px; padding-bottom: 30px; border-bottom: 1px solid var(--line); }
+.story-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.story-section-detalle { border-bottom: none; }
+.story-eyebrow {
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 8px;
+}
+.story-headline {
+  font-family: var(--serif); font-weight: 400; font-size: clamp(22px, 3vw, 30px); line-height: 1.3;
+  color: var(--ink); margin: 0 0 20px; text-wrap: balance; max-width: 62ch;
+}
+.story-headline strong { color: var(--accent); font-weight: 700; }
+.story-title { font-family: var(--serif); font-weight: 400; font-size: 19px; margin: 0 0 14px; color: var(--ink); }
+.kpis-compact { grid-template-columns: repeat(4, 1fr); margin-bottom: 0; }
+.kpis-compact .kpi { padding: 12px 14px; }
+.kpis-compact .kpi .value { font-size: 21px; }
+
+.hitos-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.hito-card {
+  position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; box-shadow: var(--shadow); overflow: hidden;
+}
+.hito-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #f3c77a, var(--accent));
+}
+.hito-card .h-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink-3); text-transform: uppercase; margin: 0 0 8px;
+}
+.hito-card .h-value {
+  font-family: var(--serif); font-size: 24px; font-weight: 700; color: var(--ink); margin: 0 0 4px; line-height: 1.15;
+}
+.hito-card .h-detalle { font-size: 12.5px; color: var(--ink-2); margin: 0; }
 
 /* ---------- insights ---------- */
 .insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 20px; }
@@ -278,6 +323,17 @@ footer.note { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--l
   font: inherit; font-size: 14px; padding: 9px 12px; border-radius: 8px; min-width: 180px;
   border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
 }
+/* Comparar A vs B: cada lado agrupado en su propia "caja" para que quede
+   claro que el separador "vs" une dos selectores, no dos filas sueltas. */
+.periodo-selector-comparar {
+  align-items: center; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 16px; gap: 16px;
+}
+.periodo-selector-comparar label { gap: 6px; }
+.periodo-vs {
+  font-family: var(--serif); font-size: 13px; font-weight: 700; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 1px;
+}
 
 /* ---------- ficha diaria (dia puntual, estilo cierre de caja) ---------- */
 .ficha-header { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
@@ -305,6 +361,92 @@ footer.note { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--l
 }
 .d-value.up { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
 .d-value.down { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 40%, var(--line)); }
+
+/* ---------- eventos importantes (picos de venta, estilo carta de coleccion) ---------- */
+.eventos-block { margin-bottom: 26px; }
+.eventos-block h2 { font-family: var(--serif); font-weight: 400; font-size: 20px; margin: 0 0 4px; color: var(--ink); }
+.eventos-block .card-sub { margin: 0 0 16px; font-size: 12.5px; color: var(--ink-3); max-width: 68ch; }
+
+.eventos-grid { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: thin; }
+
+.evento-card {
+  position: relative; flex: 0 0 188px; width: 188px; height: 252px;
+  border-radius: 16px; padding: 16px 14px 14px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  background:
+    radial-gradient(120% 90% at 30% 0%, rgba(232,121,79,0.30), transparent 60%),
+    linear-gradient(160deg, #1c2531 0%, #10161e 62%, #0a0e14 100%);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  box-shadow: var(--shadow), inset 0 0 0 1px rgba(232,121,79,0.18);
+  overflow: hidden;
+  isolation: isolate;
+}
+:root:not([data-theme="dark"]) .evento-card {
+  background:
+    radial-gradient(120% 90% at 30% 0%, rgba(214,75,42,0.22), transparent 60%),
+    linear-gradient(160deg, #23303f 0%, #17222e 62%, #0f1720 100%);
+}
+.evento-card::before {
+  content: ""; position: absolute; inset: 0; padding: 1px; border-radius: inherit;
+  background: linear-gradient(155deg, #f3c77a, var(--accent) 45%, transparent 75%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  pointer-events: none; z-index: 1;
+}
+.evento-card::after {
+  content: ""; position: absolute; top: -60%; left: -20%; width: 60%; height: 220%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.10), transparent);
+  transform: rotate(20deg); pointer-events: none;
+}
+.evento-card .ec-dow {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-2); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 999px; padding: 3px 10px; margin-bottom: 10px; z-index: 2;
+}
+.evento-card .ec-delta {
+  font-family: var(--serif); font-size: 34px; font-weight: 700; line-height: 1; z-index: 2;
+  background: linear-gradient(135deg, #ffe3b0, var(--accent) 60%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 24px rgba(232,121,79,0.35);
+}
+.evento-card .ec-fecha { margin: 8px 0 2px; font-size: 13.5px; font-weight: 700; color: var(--ink); z-index: 2; }
+.evento-card .ec-total { font-size: 20px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; z-index: 2; }
+.evento-card .ec-total-label { font-size: 10.5px; color: var(--ink-3); margin-bottom: auto; z-index: 2; }
+.evento-card .ec-contexto {
+  width: 100%; margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.14);
+  display: flex; justify-content: space-between; gap: 6px; z-index: 2;
+}
+.evento-card .ec-ctx-item { font-size: 10.5px; color: var(--ink-3); text-align: left; }
+.evento-card .ec-ctx-item b { display: block; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; font-weight: 700; }
+
+.eventos-subtitulo {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ink-3); margin: 4px 0 8px;
+}
+
+/* Variante "caida" (dia flojo atipico) — mismo formato de carta, tono frio
+   de alerta en vez del dorado de los picos, para que se distingan de un
+   vistazo sin leer el numero. */
+.evento-card-bajo {
+  background:
+    radial-gradient(120% 90% at 30% 0%, rgba(226,113,106,0.26), transparent 60%),
+    linear-gradient(160deg, #1c2531 0%, #10161e 62%, #0a0e14 100%);
+  box-shadow: var(--shadow), inset 0 0 0 1px rgba(226,113,106,0.20);
+}
+:root:not([data-theme="dark"]) .evento-card-bajo {
+  background:
+    radial-gradient(120% 90% at 30% 0%, rgba(196,60,52,0.20), transparent 60%),
+    linear-gradient(160deg, #23303f 0%, #17222e 62%, #0f1720 100%);
+}
+.evento-card-bajo::before {
+  background: linear-gradient(155deg, #f5b5b0, var(--critical) 45%, transparent 75%);
+}
+.evento-card-bajo .ec-delta {
+  background: linear-gradient(135deg, #f8c9c5, var(--critical) 60%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 24px rgba(226,113,106,0.35);
+}
 
 @media (max-width: 880px) {
   .kpis { grid-template-columns: repeat(2, 1fr); }
