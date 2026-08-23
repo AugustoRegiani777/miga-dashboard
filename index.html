@@ -45,6 +45,7 @@
       <button type="button" class="tab-btn" data-tab="productos">Productos</button>
       <button type="button" class="tab-btn" data-tab="horarios">Horarios</button>
       <button type="button" class="tab-btn" data-tab="operacion">Operación</button>
+      <button type="button" class="tab-btn" data-tab="eventos">Eventos</button>
     </nav>
 
     <p id="loading-msg" class="empty-msg" style="margin: 20px 0;">Consultando Supabase…</p>
@@ -345,6 +346,43 @@
         </div>
         <div id="op-vista-mes"></div>
       </div>
+    </section>
+
+    <!-- ===== EVENTOS ===== -->
+    <section class="tab-panel" id="tab-eventos">
+      <div class="story-section">
+        <p class="story-eyebrow">Registro</p>
+        <h2 class="story-title">Qué pasó, qué día</h2>
+        <p class="card-sub" style="max-width: 68ch;">Anotá acá cualquier cosa que pueda explicar un cambio en las ventas: un reel, un feriado, una ola de calor, lo que sea. Es la referencia para cuando en "Facturación → Eventos importantes" aparezca un pico o una caída rara.</p>
+      </div>
+
+      <form id="ev-form" class="card evento-form">
+        <div class="evento-form-row">
+          <label class="field">
+            Fecha
+            <input type="date" id="ev-fecha" required />
+          </label>
+          <label class="field">
+            Categoría
+            <select id="ev-categoria">
+              <option value="marketing">Marketing</option>
+              <option value="feriado">Feriado</option>
+              <option value="clima">Clima</option>
+              <option value="otro" selected>Otro</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">
+          Descripción
+          <textarea id="ev-descripcion" rows="2" required placeholder="Ej: publicamos un reel del sandwich nuevo"></textarea>
+        </label>
+        <div class="evento-form-footer">
+          <p class="evento-form-error" id="ev-error" hidden></p>
+          <button type="submit" id="ev-submit" class="primary-btn evento-submit">Agregar evento</button>
+        </div>
+      </form>
+
+      <div class="evento-list" id="ev-lista"></div>
     </section>
 
     <footer class="note">

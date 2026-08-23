@@ -1,4 +1,4 @@
-import { signIn, signOut, restoreSession } from "./supabase.js";
+import { signIn, signOut, restoreSession, sbPost, sbDelete } from "./supabase.js";
 import { cargarTodo, HORAS_OPERATIVAS } from "./data.js";
 import {
   initTooltip, barChart, stackedBarChart, groupedBarChart, lineChart,
@@ -18,7 +18,14 @@ const dom = {
   logoutBtn: document.querySelector("#logout-btn"),
   tabsNav: document.querySelector("#tabs-nav"),
   loadingMsg: document.querySelector("#loading-msg"),
-  stabsProductos: document.querySelector("#stabs-productos")
+  stabsProductos: document.querySelector("#stabs-productos"),
+  evForm: document.querySelector("#ev-form"),
+  evFecha: document.querySelector("#ev-fecha"),
+  evCategoria: document.querySelector("#ev-categoria"),
+  evDescripcion: document.querySelector("#ev-descripcion"),
+  evSubmit: document.querySelector("#ev-submit"),
+  evError: document.querySelector("#ev-error"),
+  evLista: document.querySelector("#ev-lista")
 };
 
 const DOW_ORDER = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -1121,6 +1128,71 @@ function renderHorarios() {
 }
 
 // ============================================================
+// EVENTOS (registro manual de eventos de negocio — unica vista que escribe)
+// ============================================================
+const CATEGORIA_EVENTO_LABEL = { marketing: "Marketing", feriado: "Feriado", clima: "Clima", otro: "Otro" };
+
+function fmtFechaLarga(iso) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function eventoRowHtml(ev) {
+  return `
+    <div class="evento-row">
+      <div class="evento-row-main">
+        <span class="evento-tag">${CATEGORIA_EVENTO_LABEL[ev.categoria] || ev.categoria}</span>
+        <span class="evento-fecha">${fmtFechaLarga(ev.fecha)}</span>
+        <p class="evento-desc">${ev.descripcion}</p>
+      </div>
+      <button type="button" class="ghost-btn evento-del" data-id="${ev.id}">Borrar</button>
+    </div>
+  `;
+}
+
+function renderEventos() {
+  const eventos = datos.eventos || [];
+  dom.evLista.innerHTML = eventos.length
+    ? eventos.map(eventoRowHtml).join("")
+    : `<p class="empty-msg">Todavía no cargaste ningún evento.</p>`;
+}
+
+async function handleAddEvento(event) {
+  event.preventDefault();
+  dom.evError.hidden = true;
+  const fecha = dom.evFecha.value;
+  const descripcion = dom.evDescripcion.value.trim();
+  const categoria = dom.evCategoria.value;
+  if (!fecha || !descripcion) return;
+
+  dom.evSubmit.disabled = true;
+  dom.evSubmit.textContent = "Agregando…";
+  try {
+    const fila = await sbPost("/eventos_negocio", { fecha, descripcion, categoria });
+    datos.eventos = [fila, ...(datos.eventos || [])];
+    dom.evForm.reset();
+    renderEventos();
+  } catch (error) {
+    dom.evError.textContent = error.message || "No se pudo guardar el evento.";
+    dom.evError.hidden = false;
+  } finally {
+    dom.evSubmit.disabled = false;
+    dom.evSubmit.textContent = "Agregar evento";
+  }
+}
+
+async function handleDeleteEvento(id) {
+  if (!confirm("¿Borrar este evento? No se puede deshacer.")) return;
+  try {
+    await sbDelete(`/eventos_negocio?id=eq.${id}`);
+    datos.eventos = (datos.eventos || []).filter((e) => e.id !== id);
+    renderEventos();
+  } catch (error) {
+    alert(error.message || "No se pudo borrar el evento.");
+  }
+}
+
+// ============================================================
 // NAVEGACIÓN
 // ============================================================
 let operacionRenderizado = false;
@@ -1133,6 +1205,7 @@ function switchTab(name) {
   if (name === "productos") renderProductosTab(document.querySelector(".stab.active")?.dataset.stab || "sandwiches");
   if (name === "horarios") renderHorarios();
   if (name === "operacion" && !operacionRenderizado) { renderOperacionGeneral(); operacionRenderizado = true; }
+  if (name === "eventos") renderEventos();
 }
 
 function switchStab(name) {
@@ -1182,6 +1255,12 @@ function bindEvents() {
   });
   document.querySelector("#op-dia-select").addEventListener("change", (e) => renderFichaDia(document.querySelector("#op-ficha-dia"), e.target.value));
   document.querySelector("#op-mes-select").addEventListener("change", (e) => renderOperacionMes(e.target.value));
+
+  dom.evForm.addEventListener("submit", handleAddEvento);
+  dom.evLista.addEventListener("click", (e) => {
+    const btn = e.target.closest(".evento-del");
+    if (btn) handleDeleteEvento(Number(btn.dataset.id));
+  });
 }
 
 async function boot() {

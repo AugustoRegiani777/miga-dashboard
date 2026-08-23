@@ -137,3 +137,49 @@ export async function sbGet(path) {
     offset += page.length;
   }
 }
+
+// Escritura autenticada (POST/DELETE), mismo mecanismo de renovacion de
+// token que sbGet. Usado solo por las pocas vistas que escriben de verdad
+// (ej. registro de eventos de negocio) — el resto del dashboard es de solo
+// lectura, ver CLAUDE.md seccion 1.
+async function sbWrite(method, path, body, extraHeaders = {}) {
+  let session = loadSession();
+
+  async function once(url) {
+    let res = await fetch(url, {
+      method,
+      headers: { ...authHeaders(session?.accessToken), ...extraHeaders },
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+    if (res.status === 401 && session?.refreshToken) {
+      try {
+        session = await refreshSession(session);
+        res = await fetch(url, {
+          method,
+          headers: { ...authHeaders(session.accessToken), ...extraHeaders },
+          body: body !== undefined ? JSON.stringify(body) : undefined
+        });
+      } catch {
+        clearSession();
+      }
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Supabase ${method} ${url} -> ${res.status}: ${text}`);
+    }
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  return once(`${BASE}${path}`);
+}
+
+// Inserta una fila y devuelve la fila creada (con el id generado por Postgres).
+export async function sbPost(path, body) {
+  const rows = await sbWrite("POST", path, body, { Prefer: "return=representation" });
+  return rows?.[0] ?? null;
+}
+
+export async function sbDelete(path) {
+  return sbWrite("DELETE", path);
+}
