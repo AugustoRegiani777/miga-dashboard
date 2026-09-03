@@ -659,7 +659,11 @@ function renderVistaMes(mesLabel) {
     { l: "ToGoo (uds, sandwiches)", v: String(rec.togoo) },
     { l: "Ajustes de stock (uds)", v: `${rec.ajuste > 0 ? "+" : ""}${rec.ajuste}`, s: "sandwiches, neto del mes" },
     { l: "Devoluciones / otros (uds)", v: `${rec.sinExplicar > 0 ? "+" : ""}${rec.sinExplicar}`, s: "movimientos del ledger real" },
-    { l: "Diferencia sin explicar", v: `${rec.drift > 0 ? "+" : ""}${rec.drift}`, s: "producido − vendido − ToGoo + ajuste + otros" }
+    // "drift" NO es stock negativo — es cuanto de la baja de estos dias vino
+    // de ajustes/recuentos en vez de venta limpia. Nombre viejo ("Diferencia
+    // sin explicar") se leia como "sandwiches en negativo", que nunca pasa
+    // (ver produccionVsVentasPorDia: "quedan" real nunca es negativo).
+    { l: "Bajado por ajuste (no por venta)", v: `${rec.drift > 0 ? "+" : ""}${rec.drift} uds`, s: "de lo que se produjo, cuanto salio por ajuste/recuento en vez de venta — nunca es stock negativo" }
   ].map((k) => `<div class="kpi"><p class="label">${k.l}</p><p class="value">${k.v}</p>${k.s ? `<span class="delta"><span class="vs">${k.s}</span></span>` : ""}</div>`).join("");
 
   container.innerHTML = `<section class="kpis">${kpisHtml}</section><div class="card"><h2>Facturación diaria — ${cap(mesLabel)}</h2><div id="f-mes-chart-dias"></div></div>`;
