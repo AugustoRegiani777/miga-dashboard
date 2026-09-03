@@ -2,6 +2,11 @@ import { sbGet } from "./supabase.js";
 
 const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 export const PRIMER_DIA_CON_DATOS = "2026-07-02";
+// Desde esta fecha, produccion_diaria es sync en vivo y confiable: un dia sin
+// filas ahi es un dia real de 0 produccion, no un vacio para adivinar. Antes
+// de esta fecha (backfill manual desde TXT de julio) no vale lo mismo — ver
+// seccion 6 del CLAUDE.md de este proyecto.
+const PRIMER_DIA_SYNC_CONFIABLE = "2026-07-17";
 
 // Horas operativas por dia de la semana — sin esto, comparar "facturacion
 // promedio" de un lunes de 4,5h contra un sabado de 13h abierto hace ver al
@@ -442,7 +447,12 @@ export async function cargarTodo() {
     for (const d of dias) {
       const fecha = d.fecha;
       const prodDiaReal = produccionPorDia.get(fecha) || new Map();
-      const esEstimado = prodDiaReal.size === 0;
+      // Solo se estima antes del sync en vivo (backfill de julio, sin
+      // produccion_diaria confiable). Desde PRIMER_DIA_SYNC_CONFIABLE, un dia
+      // sin filas de produccion es un dia real de 0 — no adivinar sumando
+      // vendidos+togoo, eso fue lo que inflo el arrastre en dias como el
+      // 17/08 (0 produccion real ese dia, para NINGUN producto).
+      const esEstimado = fecha < PRIMER_DIA_SYNC_CONFIABLE && prodDiaReal.size === 0;
       const vendidos = ventasPorProductoPorDia.get(fecha)?.get(id)?.cantidad || 0;
       const togoo = togooPorDia.get(fecha)?.get(id)?.cantidad || 0;
       const ajuste = ajustePorProductoPorDia.get(id)?.get(fecha) || 0;
@@ -463,12 +473,26 @@ export async function cargarTodo() {
   // sin cargar el ruido de transcripción del backfill de julio.
   const primerDiaDeMes = new Map(); // mesLabel -> fecha del primer dia en `dias`
   for (const d of dias) if (!primerDiaDeMes.has(d.mesLabel)) primerDiaDeMes.set(d.mesLabel, d.fecha);
-  const ledgerNetoDesde = new Map(); // productoId -> Map(fecha -> suma de movimientosRaw.cantidad desde esa fecha)
+  const ledgerNetoDesde = new Map(); // productoId -> Map(fecha -> suma confiable desde esa fecha)
   function netoLedgerDesde(productoId, fechaDesde) {
     let key = ledgerNetoDesde.get(productoId);
     if (!key) { key = new Map(); ledgerNetoDesde.set(productoId, key); }
     if (key.has(fechaDesde)) return key.get(fechaDesde);
-    const total = movimientosRaw.reduce((s, r) => (r.producto_id === productoId && r.fecha >= fechaDesde ? s + r.cantidad : s), 0);
+    // Antes sumaba movimientosRaw.cantidad directo — eso incluye los tipos
+    // "venta"/"produccion" del ledger crudo, que (como ya dice el comentario
+    // de movimientoNetoPorProductoPorDia mas arriba) tienen huecos reales.
+    // Usar la MISMA fuente confiable que ya usa el resto del calculo dia a
+    // dia evita que el ancla del mes arranque mal — eso era lo que inflaba
+    // "de ayer" cada vez mas a medida que avanzaba el mes.
+    const movDia = movimientoNetoPorProductoPorDia.get(productoId);
+    let total = 0;
+    if (movDia) {
+      for (const d of dias) {
+        if (d.fecha < fechaDesde) continue;
+        const m = movDia.get(d.fecha);
+        if (m) total += m.hoy - m.vendidos - m.togoo + m.ajuste + m.otros;
+      }
+    }
     key.set(fechaDesde, total);
     return total;
   }
